@@ -152,10 +152,6 @@ int main(int argc, char *argv[]) {
             cout << "Correct!" << endl;
         } else {
             cout << "Wrong!" << endl;
-            cout << "Output:" << endl;
-            output.print();
-            cout << "Answer:" << endl;
-            ans.print();
         }
     } else {
         cout << "Output:" << endl;
