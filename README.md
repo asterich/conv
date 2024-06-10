@@ -32,6 +32,6 @@ Usage: `python scripts/gen_data.py --dtype <data_type> --input_size <input_size>
 - output_name: name of output files
 - output_dir: directory to output file
 
-For example, command `python gen_data.py --dtype int --input_size 10 --kernel_size 3 --output_name in_1024_kern_3 --output_dir data` will generate 2 files in data directory: in_1024_kern_3.in, in_1024_kern_3.ans
+For example, command `python gen_data.py --dtype int --input_size 1024 --kernel_size 3 --output_name in_1024_kern_3 --output_dir data` will generate 2 files in data directory: in_1024_kern_3.in, in_1024_kern_3.ans
 
 in_1024_kern_3.in contains input matrix and kernel matrix, in_1024_kern_3.ans contains output matrix
