@@ -133,11 +133,17 @@ int main(int argc, char *argv[]) {
     Matrix2D<int> input(*input_stream);
     Matrix2D<int> kernel(*input_stream);
     int out_size = input.size - kernel.size + 1;
-    Matrix2D<int> output(out_size);
 
     {
         Timer timer("conv2d_naive");
-        conv2d(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
+        Matrix2D<int> output_naive(out_size);
+        conv2d_naive(input.data.data(), output_naive.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
+    }
+
+    Matrix2D<int> output(out_size);
+    {
+        Timer timer("conv2d_omp");
+        conv2d_omp(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
     }
 
     if (ans_ifs.is_open()) {
