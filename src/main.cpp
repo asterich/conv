@@ -134,16 +134,27 @@ int main(int argc, char *argv[]) {
     Matrix2D<int> kernel(*input_stream);
     int out_size = input.size - kernel.size + 1;
 
-    {
-        Timer timer("conv2d_naive");
-        Matrix2D<int> output_naive(out_size);
-        conv2d_naive(input.data.data(), output_naive.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
-    }
+    cout << "input size: " << input.size << endl;
+    cout << "kernel size: " << kernel.size << endl;
+    cout << "output size: " << out_size << endl;
 
     Matrix2D<int> output(out_size);
     {
+        Timer timer("conv2d_naive");
+        Matrix2D<int> output_naive(out_size);
+        conv2d_naive(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
+    }
+
+    
+    {
         Timer timer("conv2d_omp");
+        
         conv2d_omp(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
+    }
+
+    {
+        Timer timer("conv2d_with_im2col");
+        conv2d_with_im2col(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
     }
 
     if (ans_ifs.is_open()) {
