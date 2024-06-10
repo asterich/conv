@@ -19,6 +19,7 @@
 import argparse
 import numpy as np
 import os
+import torch
 
 def gen_data(input_size, kernel_size, dtype):
     input_data = None
@@ -38,9 +39,16 @@ def gen_data(input_size, kernel_size, dtype):
     
     print("input matrix and kernel generated")
 
-    for i in range(input_size - kernel_size + 1):
-        for j in range(input_size - kernel_size + 1):
-            output_data[i, j] = np.sum(input_data[i:i+kernel_size, j:j+kernel_size] * kernel_data)
+    # Use torch.nn.Conv2d
+    input_tensor = torch.tensor(input_data).unsqueeze(0).unsqueeze(0).float()
+    kernel_tensor = torch.tensor(kernel_data).unsqueeze(0).unsqueeze(0).float()
+    conv = torch.nn.Conv2d(1, 1, kernel_size, bias=False)
+    conv.weight.data = kernel_tensor
+    output_tensor = conv(input_tensor)
+    output_data = output_tensor.squeeze(0).squeeze(0).detach().numpy()
+    # convert output_data to int if dtype is int
+    if dtype == 'int':
+        output_data = np.round(output_data).astype(int)
 
     print("output matrix generated")
 
