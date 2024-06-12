@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
     {
         Timer timer("conv2d_with_im2col_openmp");
         #pragma noinline
-        conv2d_with_im2col_blocked(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
+        conv2d_with_im2col(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
     }
     __itt_pause();
 
