@@ -9,6 +9,7 @@
 #include <memory>
 #include <chrono>
 #include <unistd.h>
+#include <ittnotify.h>
 
 
 #include "conv.hpp"
@@ -18,7 +19,7 @@ using namespace std;
 class Timer {
 public:
     Timer() : start_(std::chrono::high_resolution_clock::now()) {}
-    Timer(const std::string &name) : start_(std::chrono::high_resolution_clock::now()), name_(name) {}
+    Timer(const std::string &name) : Timer() { name_ = name; }
 
     void reset() {
         start_ = std::chrono::high_resolution_clock::now();
@@ -93,6 +94,8 @@ struct Matrix2D {
 };
 
 int main(int argc, char *argv[]) {
+    __itt_pause();
+
     /* Usage: ./conv -i <input_file> -a <ans_file> */
     istream *input_stream = nullptr;
     ifstream ifs;
@@ -145,17 +148,20 @@ int main(int argc, char *argv[]) {
         conv2d_naive(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
     }
 
-    
+     
     {
         Timer timer("conv2d_omp");
-        
+        #pragma noinline
         conv2d_omp(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
     }
-
+    
+    __itt_resume();
     {
-        Timer timer("conv2d_with_im2col");
-        conv2d_with_im2col(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
+        Timer timer("conv2d_with_im2col_openmp");
+        #pragma noinline
+        conv2d_with_im2col_blocked(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
     }
+    __itt_pause();
 
     if (ans_ifs.is_open()) {
         Matrix2D<int> ans(ans_ifs);

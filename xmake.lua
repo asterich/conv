@@ -49,13 +49,15 @@ target("conv")
     set_kind("binary")
     add_files("src/*.cpp")
     add_includedirs("include")
+    add_includedirs("$(env VTUNE_PROFILER_DIR)/sdk/include")
     set_rundir("$(projectdir)")
-    add_cxxflags("-std=c++17 -O3")
+    add_cxxflags("-std=c++20 -O2 -g")
     if is_config("toolchain", "intel-oneapi") then
-        add_cxxflags("-qopenmp")
-        add_ldflags("-qopenmp")
+        add_cxxflags("-qopenmp -qopt-report -vec-threshold0", {force = true})
+        add_ldflags("-liomp5 -g -Rno-debug-disables-optimization")
     else
         add_cxxflags("-fopenmp")
         add_ldflags("-fopenmp")
     end
+    add_ldflags("-L$(env VTUNE_PROFILER_DIR)/sdk/lib64 -littnotify")
 
