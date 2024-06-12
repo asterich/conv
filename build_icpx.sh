@@ -7,6 +7,7 @@ echo "Building the project..."
 spack load intel-oneapi-compilers
 which icx
 spack load intel-oneapi-vtune
+spack load intel-oneapi-mkl
 
 # compile the code
 xmake clean

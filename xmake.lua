@@ -45,11 +45,15 @@ toolchain("intel-oneapi")
     end)
 toolchain_end()
 
+add_requires("onednn", {configs = {cpu_runtime = "omp"}})
+
 target("conv")
     set_kind("binary")
     add_files("src/*.cpp")
     add_includedirs("include")
     add_includedirs("$(env VTUNE_PROFILER_DIR)/sdk/include")
+    add_includedirs("$(env MKLROOT)/include")
+    add_packages("onednn")
     set_rundir("$(projectdir)")
     add_cxxflags("-std=c++20 -O2 -g")
     if is_config("toolchain", "intel-oneapi") then
@@ -60,4 +64,5 @@ target("conv")
         add_ldflags("-fopenmp")
     end
     add_ldflags("-L$(env VTUNE_PROFILER_DIR)/sdk/lib64 -littnotify")
+    add_ldflags("-Wl,--start-group $(env MKLROOT)/lib/libmkl_intel_ilp64.a $(env MKLROOT)/lib/libmkl_intel_thread.a $(env MKLROOT)/lib/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl", {force = true})
 

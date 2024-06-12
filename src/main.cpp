@@ -133,18 +133,18 @@ int main(int argc, char *argv[]) {
         input_stream = &cin;
     }
 
-    Matrix2D<int> input(*input_stream);
-    Matrix2D<int> kernel(*input_stream);
+    Matrix2D<float> input(*input_stream);
+    Matrix2D<float> kernel(*input_stream);
     int out_size = input.size - kernel.size + 1;
 
     cout << "input size: " << input.size << endl;
     cout << "kernel size: " << kernel.size << endl;
     cout << "output size: " << out_size << endl;
 
-    Matrix2D<int> output(out_size);
+    Matrix2D<float> output(out_size);
     {
         Timer timer("conv2d_naive");
-        Matrix2D<int> output_naive(out_size);
+        Matrix2D<float> output_naive(out_size);
         conv2d_naive(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
     }
 
@@ -157,14 +157,40 @@ int main(int argc, char *argv[]) {
     
     __itt_resume();
     {
+        dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+        dnnl::stream s(eng);
+        dnnl::memory::dims input_dims = {1, 1, input.size, input.size};
+        dnnl::memory::dims kernel_dims = {1, 1, kernel.size, kernel.size};
+        dnnl::memory::dims output_dims = {1, 1, out_size, out_size};
+        dnnl::memory::dims strides = {1, 1};
+        dnnl::memory::dims padding = {0, 0};
+        dnnl::memory::desc input_md(input_dims, dnnl::memory::data_type::f32, dnnl::memory::format_tag::nchw);
+        dnnl::memory::desc kernel_md(kernel_dims, dnnl::memory::data_type::f32, dnnl::memory::format_tag::nchw);
+        dnnl::memory::desc output_md(output_dims, dnnl::memory::data_type::f32, dnnl::memory::format_tag::nchw);
+        dnnl::memory input_mem(input_md, eng, input.data.data());
+        dnnl::memory kernel_mem(kernel_md, eng, kernel.data.data());
+        dnnl::memory output_mem(output_md, eng, output.data.data());
+        dnnl::convolution_forward::primitive_desc conv_pd(eng, dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct, input_md, kernel_md, output_md, strides, padding, padding);
+
+        Timer timer("conv2d_with_mkl_dnn");
+        dnnl::convolution_forward(conv_pd).execute(s, {{DNNL_ARG_SRC, input_mem}, {DNNL_ARG_WEIGHTS, kernel_mem}, {DNNL_ARG_DST, output_mem}});
+        s.wait();
+
+        // conv2d_mkl_dnn(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
+    }
+    __itt_pause();
+
+    __itt_resume();
+    {
         Timer timer("conv2d_with_im2col_openmp");
         #pragma noinline
         conv2d_with_im2col(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
     }
     __itt_pause();
 
+
     if (ans_ifs.is_open()) {
-        Matrix2D<int> ans(ans_ifs);
+        Matrix2D<float> ans(ans_ifs);
         if (output == ans) {
             cout << "Correct!" << endl;
         } else {
