@@ -19,6 +19,66 @@ inline dnnl::memory::dim product(const dnnl::memory::dims &dims) {
                          std::multiplies<dnnl::memory::dim>());
 }
 
+inline void read_from_dnnl_memory(void *handle, dnnl::memory &mem) {
+  dnnl::engine eng = mem.get_engine();
+  size_t size = mem.get_desc().get_size();
+
+  if (!handle)
+    throw std::runtime_error("handle is nullptr.");
+
+#ifdef DNNL_WITH_SYCL
+  bool is_cpu_sycl = (DNNL_CPU_RUNTIME == DNNL_RUNTIME_SYCL &&
+                      eng.get_kind() == dnnl::engine::kind::cpu);
+  bool is_gpu_sycl = (DNNL_GPU_RUNTIME == DNNL_RUNTIME_SYCL &&
+                      eng.get_kind() == dnnl::engine::kind::gpu);
+  if (is_cpu_sycl || is_gpu_sycl) {
+    auto mkind = dnnl::sycl_interop::get_memory_kind(mem);
+    if (mkind == dnnl::sycl_interop::memory_kind::buffer) {
+      auto buffer = dnnl::sycl_interop::get_buffer<uint8_t>(mem);
+      auto src = buffer.get_host_access();
+      uint8_t *src_ptr = src.get_pointer();
+      if (!src_ptr)
+        throw std::runtime_error("get_pointer returned nullptr.");
+      for (size_t i = 0; i < size; ++i)
+        ((uint8_t *)handle)[i] = src_ptr[i];
+    } else {
+      assert(mkind == dnnl::sycl_interop::memory_kind::usm);
+      uint8_t *src_ptr = (uint8_t *)mem.get_data_handle();
+      if (!src_ptr)
+        throw std::runtime_error("get_data_handle returned nullptr.");
+      if (is_cpu_sycl) {
+        for (size_t i = 0; i < size; ++i)
+          ((uint8_t *)handle)[i] = src_ptr[i];
+      } else {
+        auto sycl_queue = dnnl::sycl_interop::get_queue(dnnl::stream(eng));
+        sycl_queue.memcpy(handle, src_ptr, size).wait();
+      }
+    }
+    return;
+  }
+#endif
+#if DNNL_GPU_RUNTIME == DNNL_RUNTIME_OCL
+  if (eng.get_kind() == dnnl::engine::kind::gpu) {
+    void *mapped_ptr = mem.map_data();
+    if (mapped_ptr)
+      std::memcpy(handle, mapped_ptr, size);
+    mem.unmap_data(mapped_ptr);
+    return;
+  }
+#endif
+
+  if (eng.get_kind() == dnnl::engine::kind::cpu) {
+    uint8_t *src = static_cast<uint8_t *>(mem.get_data_handle());
+    if (!src)
+      throw std::runtime_error("get_data_handle returned nullptr.");
+    for (size_t i = 0; i < size; ++i)
+      ((uint8_t *)handle)[i] = src[i];
+    return;
+  }
+
+  // assert(!"not expected");
+}
+
 inline void write_to_dnnl_memory(void *handle, dnnl::memory &mem) {
   dnnl::engine eng = mem.get_engine();
   size_t size = mem.get_desc().get_size();
@@ -249,10 +309,10 @@ void conv2d_mkl_dnn_opt(T *input, T *output, T *kernel, int in_size,
   memory::dims conv1_padding = {0, 0};
 
   auto user_src_memory = memory({{conv1_src_tz}, dt::f32, tag::nchw}, eng);
-  // write_to_dnnl_memory(input, user_src_memory);
+  write_to_dnnl_memory(input, user_src_memory);
   auto user_weights_memory =
       memory({{conv1_weights_tz}, dt::f32, tag::nchw}, eng);
-  // write_to_dnnl_memory(kernel, user_weights_memory);
+  write_to_dnnl_memory(kernel, user_weights_memory);
 
   auto conv1_src_md = memory::desc({conv1_src_tz}, dt::f32, tag::any);
   auto conv1_weights_md = memory::desc({conv1_weights_tz}, dt::f32, tag::any);
@@ -296,5 +356,6 @@ void conv2d_mkl_dnn_opt(T *input, T *output, T *kernel, int in_size,
     net.at(i).execute(s, net_args.at(i));
 
   s.wait();
+  read_from_dnnl_memory(output, conv1_dst_memory);
 }
 #endif
