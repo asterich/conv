@@ -54,7 +54,7 @@ void im2col_openmp(T *input, T *output, int in_size, int out_size, int kernel_si
     size_t out_w = (in_size - kernel_size + 2 * pad) / stride + 1;
     size_t kernel_size_sq = kernel_size * kernel_size;
 
-    // #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(static)
     for (size_t c = 0; c < kernel_size_sq; c++) {
         size_t w_offset = c % kernel_size;
         size_t h_offset = (c / kernel_size) % kernel_size;
@@ -128,27 +128,76 @@ void conv2d_mkl_dnn(T *input, T *output, T *kernel, int in_size, int out_size, i
 }
 
 template <typename T>
-void conv2d_direct_omp_blocking(T *input, T *output, T *kernel, int in_size, int out_size, int kernel_size) {
-    int blockSize = 16;
+T conv2d_direct_omp_blocking_kernel_3x3_avx(T *input1, T *input2, T *input3, T *kernel);
 
-    #pragma omp parallel for collapse(2)
-    for (int i = 0; i < out_size; i += blockSize) {
-        for (int j = 0; j < out_size; j += blockSize) {
-            for (int bi = i; bi < std::min(i + blockSize, out_size); ++bi) {
-                for (int bj = j; bj < std::min(j + blockSize, out_size); ++bj) {
-                    T sum = 0.0;
-                    
-                    for (int ki = 0; ki < kernel_size; ++ki) {
-                        for (int kj = 0; kj < kernel_size; ++kj) {
-                            sum += input[(bi + ki) * in_size + (bj + kj)] * kernel[ki * kernel_size + kj];
-                        }
+template <>
+inline float conv2d_direct_omp_blocking_kernel_3x3_avx<float>(float *input1, float *input2, float *input3, float *kernel) {
+    float sum = input1[0] * kernel[0];
+
+    __m256 input_v = _mm256_setr_ps(input1[1], input1[2], input2[0], input2[1], input2[2], input3[0], input3[1], input3[2]);
+    __m256 kernel_v = _mm256_loadu_ps(kernel + 1);
+    __m256 sum_v = _mm256_mul_ps(input_v, kernel_v);
+    sum += sum_v[0] + sum_v[1] + sum_v[2] + sum_v[3] + sum_v[4] + sum_v[5] + sum_v[6] + sum_v[7];
+
+    return sum;
+}
+
+template <>
+inline double conv2d_direct_omp_blocking_kernel_3x3_avx<double>(double *input1, double *input2, double *input3, double *kernel) {
+    double sum = input1[0] * kernel[0];
+
+    __m512d input_v = _mm512_setr_pd(input1[1], input1[2], input2[0], input2[1], input2[2], input3[0], input3[1], input3[2]);
+    __m512d kernel_v = _mm512_loadu_pd(kernel + 1);
+    __m512d sum_v = _mm512_mul_pd(input_v, kernel_v);
+    
+    sum += sum_v[0] + sum_v[1] + sum_v[2] + sum_v[3] + sum_v[4] + sum_v[5] + sum_v[6] + sum_v[7];
+
+    return sum;
+}
+
+template <typename T>
+void conv2d_direct_omp_blocking(T *input, T *output, T *kernel, int in_size, int out_size, int kernel_size) {
+    int blockSize = 8;
+    
+    if (kernel_size == 3) {
+        #pragma omp parallel for collapse(2)
+        for (int i = 0; i < out_size; i += blockSize) {
+            for (int j = 0; j < out_size; j += blockSize) {
+                for (int bi = i; bi < std::min(i + blockSize, out_size); ++bi) {
+                    for (int bj = j; bj < std::min(j + blockSize, out_size); ++bj) {
+                        output[bi * out_size + bj] = conv2d_direct_omp_blocking_kernel_3x3_avx(
+                            input + bi * in_size + bj,
+                            input + (bi + 1) * in_size + bj,
+                            input + (bi + 2) * in_size + bj,
+                            kernel
+                        );
                     }
-                    output[bi * out_size + bj] = sum;
+                }
+            }
+        }
+    } else {
+        #pragma omp parallel for collapse(2)
+        for (int i = 0; i < out_size; i += blockSize) {
+            for (int j = 0; j < out_size; j += blockSize) {
+                for (int bi = i; bi < std::min(i + blockSize, out_size); ++bi) {
+                    for (int bj = j; bj < std::min(j + blockSize, out_size); ++bj) {
+                        T sum = 0.0;
+                        
+                        for (int ki = 0; ki < kernel_size; ++ki) {
+                            for (int kj = 0; kj < kernel_size; ++kj) {
+                                sum += input[(bi + ki) * in_size + (bj + kj)] * kernel[ki * kernel_size + kj];
+                            }
+                        }
+                        output[bi * out_size + bj] = sum;
+                    }
                 }
             }
         }
     }
+    
 }
+
+
 
 
 #endif
