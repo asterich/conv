@@ -11,6 +11,6 @@ spack load intel-oneapi-mkl
 
 # compile the code
 xmake clean
-xmake config --toolchain=intel-oneapi -c -p linux -a x86_64
+xmake config --toolchain=intel-oneapi -c -p linux -a x86_64 -m release
 xmake project -k compile_commands
 xmake build --rebuild --verbose

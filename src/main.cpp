@@ -180,11 +180,17 @@ int main(int argc, char *argv[]) {
     }
     __itt_pause();
 
+    // __itt_resume();
+    // {
+    //     Timer timer("conv2d_with_im2col_openmp");
+    //     conv2d_with_im2col(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
+    // }
+    // __itt_pause();
+
     __itt_resume();
     {
-        Timer timer("conv2d_with_im2col_openmp");
-        #pragma noinline
-        conv2d_with_im2col(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
+        Timer timer("conv2d_direct_omp_blocking");
+        conv2d_direct_omp_blocking(input.data.data(), output.data.data(), kernel.data.data(), input.size, out_size, kernel.size);
     }
     __itt_pause();
 

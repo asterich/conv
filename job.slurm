@@ -12,9 +12,9 @@ export OMP_NUM_THREADS=64
 
 spack load intel-oneapi-compilers
 
-xmake run conv -i data/in_16384_kern_9.in -a data/in_16384_kern_9.ans
+# xmake run conv -i data/in_16384_kern_9.in -a data/in_16384_kern_9.ans
 
-# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/asterich/.xmake/packages/o/onednn/v3.4.3/3234cd7eee27411bbcfe7dcb4d24ef2b/lib
-# spack load intel-oneapi-vtune
-# vtune -collect hotspot ./build/linux/x86_64/release/conv \
-#     -i data/in_16384_kern_9.in -a data/in_16384_kern_9.ans
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/asterich/.xmake/packages/o/onednn/v3.4.3/3234cd7eee27411bbcfe7dcb4d24ef2b/lib
+spack load intel-oneapi-vtune
+vtune -collect hotspot ./build/linux/x86_64/debug/conv \
+    -i data/in_16384_kern_3.in -a data/in_16384_kern_3.ans
