@@ -4,7 +4,7 @@
 echo "Building the project..."
 
 # import intel compiler with spack
-spack load intel-oneapi-compilers
+spack load intel-oneapi-compilers@2024.0.2
 which icx
 spack load intel-oneapi-vtune
 spack load intel-oneapi-mkl

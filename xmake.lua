@@ -55,7 +55,7 @@ target("conv")
     add_includedirs("$(env MKLROOT)/include")
     add_packages("onednn")
     set_rundir("$(projectdir)")
-    add_cxxflags("-std=c++20 -O2 -g")
+    add_cxxflags("-std=c++20 -O3 -g -xCORE-AVX512")
     if is_config("toolchain", "intel-oneapi") then
         add_cxxflags("-qopenmp -qopt-report -vec-threshold0", {force = true})
         add_ldflags("-liomp5 -g -Rno-debug-disables-optimization")
